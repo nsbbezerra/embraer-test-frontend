@@ -14,7 +14,7 @@ import {
   Text,
   useToast,
 } from '@chakra-ui/react';
-import { Fragment, useContext, useState } from 'react';
+import { Fragment, useContext, useEffect, useState } from 'react';
 import { Header } from '../components/Header';
 
 import WithdrawSvg from '../assets/money.svg';
@@ -41,13 +41,17 @@ export default function Withdraw() {
   const [valueToWithdraw, setValueToWithdraw] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const [banknotes, setBanknotes] = useState<BanknotesProps[]>([]);
+  const [cashMachineBanknotes, setCashMachineBanknotes] = useState<
+    BanknotesProps[]
+  >([]);
 
-  async function getNewBalanceValue() {
+  const [banknotesAvailableToWithdraw, setBanknotesAvailableToWithdraw] =
+    useState<BanknotesProps[]>([]);
+
+  async function getBanknotesAvailable() {
     try {
-      const { data } = await api.get(`/getBalance/${client.id}`);
-
-      console.log(data);
+      const { data } = await api.get(`/banknotes`);
+      setCashMachineBanknotes(data);
     } catch (error) {
       if (isAxiosError(error) && error.message) {
         toast({
@@ -60,6 +64,10 @@ export default function Withdraw() {
     }
   }
 
+  useEffect(() => {
+    getBanknotesAvailable();
+  }, []);
+
   async function withdraw() {
     try {
       setIsLoading(true);
@@ -67,7 +75,7 @@ export default function Withdraw() {
         amount: valueToWithdraw,
       });
 
-      setBanknotes(data.banknotes);
+      setBanknotesAvailableToWithdraw(data.banknotes);
 
       toast({
         title: 'Success',
@@ -86,7 +94,7 @@ export default function Withdraw() {
       setClient(updatedClient);
       sessionStorage.setItem('client', JSON.stringify(updatedClient));
 
-      getNewBalanceValue();
+      getBanknotesAvailable();
     } catch (error) {
       setIsLoading(false);
       if (isAxiosError(error) && error.message) {
@@ -139,6 +147,30 @@ export default function Withdraw() {
 
             <Divider my={5} />
 
+            <Text textAlign={'center'}>Notas disponíveis</Text>
+
+            <Grid templateColumns={'repeat(4, 1fr)'} gap={3} w={'100%'}>
+              {cashMachineBanknotes.map((banknote) => (
+                <Box
+                  rounded={'md'}
+                  bg={'cyan.50'}
+                  key={banknote.id}
+                  textAlign={'center'}
+                  p={2}
+                  mt={3}
+                >
+                  <Text fontWeight={'bold'} color={'cyan.700'} fontSize={'lg'}>
+                    R$ {banknote.banknoteValue}
+                  </Text>
+                  <Text fontWeight={'light'} fontSize={'xs'}>
+                    {banknote.amount} notas
+                  </Text>
+                </Box>
+              ))}
+            </Grid>
+
+            <Divider my={5} />
+
             <Text textAlign={'center'}>Insira um valor para o saque:</Text>
             <InputGroup size={'lg'} mt={3}>
               <InputLeftAddon children={'R$'} />
@@ -163,7 +195,7 @@ export default function Withdraw() {
           </Flex>
 
           <Box bg={'white'} rounded={'md'} p={5} shadow={'md'} mt={5}>
-            {!!banknotes.length && (
+            {!!banknotesAvailableToWithdraw.length && (
               <>
                 <Heading
                   fontSize={'lg'}
@@ -176,7 +208,7 @@ export default function Withdraw() {
                 <Divider my={5} />
 
                 <Stack spacing={3}>
-                  {banknotes.map((banknote) => (
+                  {banknotesAvailableToWithdraw.map((banknote) => (
                     <Box w={'100%'} position={'relative'} key={banknote.id}>
                       <Image
                         src={handleImages(banknote.banknoteValue)}
